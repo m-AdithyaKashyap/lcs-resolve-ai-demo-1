@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LCS Resolve AI — Support Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161d;
+    --surface2: #1a1e28;
+    --border: #252a38;
+    --accent: #4f8ef7;
+    --accent2: #38d9a9;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --text1: #e8ecf4;
+    --text2: #8b95b0;
+    --text3: #4a5168;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text1);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOP BAR ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: .04em;
+    white-space: nowrap;
+  }
+  .logo span { color: var(--text2); font-weight: 400; }
+
+  .key-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    max-width: 540px;
+  }
+
+  .key-row input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text1);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    outline: none;
+    transition: border .2s;
+  }
+  .key-row input:focus { border-color: var(--accent); }
+  .key-row input::placeholder { color: var(--text3); }
+
+  .key-status {
+    font-size: 11px;
+    font-family: var(--mono);
+    white-space: nowrap;
+    padding: 5px 10px;
+    border-radius: 4px;
+    background: var(--surface2);
+    color: var(--text3);
+    border: 1px solid var(--border);
+  }
+  .key-status.ok { color: var(--accent2); border-color: var(--accent2); }
+  .key-status.err { color: var(--red); border-color: var(--red); }
+
+  /* ── LAYOUT ── */
+  .app {
+    display: grid;
+    grid-template-columns: 240px 1fr 340px;
+    flex: 1;
+    overflow: hidden;
+    height: calc(100vh - 57px);
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-header {
+    padding: 14px 16px 10px;
+    font-size: 10px;
+    font-family: var(--mono);
+    letter-spacing: .1em;
+    color: var(--text3);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .customer-card {
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background .15s;
+    position: relative;
+  }
+  .customer-card:hover { background: var(--surface2); }
+  .customer-card.active { background: var(--surface2); }
+  .customer-card.active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--accent);
+    border-radius: 0 2px 2px 0;
+  }
+
+  .c-name { font-size: 13px; font-weight: 500; color: var(--text1); margin-bottom: 4px; }
+  .c-meta { font-size: 11px; color: var(--text2); }
+  .c-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+
+  .tag {
+    font-size: 9px;
+    font-family: var(--mono);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .tag-billing    { background: #1e3a5f; color: #60a5fa; }
+  .tag-reports    { background: #1a3a2a; color: #4ade80; }
+  .tag-portal     { background: #3b2f1a; color: #fb923c; }
+  .tag-sync       { background: #2d1f3d; color: #c084fc; }
+  .tag-mobile     { background: #1f2d3a; color: #38bdf8; }
+  .tag-accounting { background: #2d2a1a; color: #facc15; }
+  .tag-maintenance{ background: #3a1a1a; color: #f87171; }
+
+  .open-badge {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 9px;
+    font-family: var(--mono);
+    background: var(--red);
+    color: #fff;
+    padding: 1px 5px;
+    border-radius: 3px;
+    vertical-align: middle;
+  }
+
+  /* ── MAIN CENTER ── */
+  .main {
+    overflow-y: auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--text3);
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  .empty-state svg { opacity: .3; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text2);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-body { padding: 16px; }
+
+  /* AI Summary */
+  .ai-summary {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--text1);
+  }
+  .ai-summary strong { color: var(--accent); }
+
+  .ai-generating {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text3);
+    font-size: 13px;
+    font-family: var(--mono);
+  }
+
+  .dot-wave span {
+    display: inline-block;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin: 0 2px;
+    animation: wave 1.2s ease-in-out infinite;
+  }
+  .dot-wave span:nth-child(2) { animation-delay: .2s; }
+  .dot-wave span:nth-child(3) { animation-delay: .4s; }
+  @keyframes wave { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-7px)} }
+
+  /* Tickets & Hotfixes */
+  .item-row {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .item-row:last-child { border-bottom: none; }
+
+  .item-id {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    margin-bottom: 4px;
+  }
+  .item-desc { font-size: 13px; color: var(--text1); margin-bottom: 6px; }
+  .item-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  .status-open   { font-size: 9px; font-family: var(--mono); padding: 2px 7px; border-radius: 3px; background: #3a1a1a; color: var(--red); }
+  .status-closed { font-size: 9px; font-family: var(--mono); padding: 2px 7px; border-radius: 3px; background: #1a3a2a; color: var(--accent2); }
+
+  .sev-high   { color: var(--red); font-size: 10px; font-family: var(--mono); }
+  .sev-medium { color: var(--amber); font-size: 10px; font-family: var(--mono); }
+  .sev-low    { color: var(--accent2); font-size: 10px; font-family: var(--mono); }
+
+  .relevant-badge {
+    font-size: 9px;
+    font-family: var(--mono);
+    padding: 2px 7px;
+    border-radius: 3px;
+    background: #1e3355;
+    color: var(--accent);
+    border: 1px solid #2a4a7a;
+  }
+
+  .flag-note {
+    font-size: 10px;
+    color: var(--amber);
+    font-family: var(--mono);
+  }
+
+  /* ── CHAT PANEL ── */
+  .chat-panel {
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chat-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text2);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .chat-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--text3);
+    font-size: 12px;
+    font-family: var(--mono);
+    text-align: center;
+    padding: 20px;
+  }
+
+  .msg {
+    max-width: 90%;
+    padding: 10px 13px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .msg-user {
+    background: #1a2a4a;
+    color: var(--text1);
+    align-self: flex-end;
+    border: 1px solid #253a66;
+  }
+  .msg-ai {
+    background: var(--surface2);
+    color: var(--text1);
+    align-self: flex-start;
+    border: 1px solid var(--border);
+  }
+  .msg-ai strong { color: var(--accent2); }
+
+  .chat-input-row {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+  }
+
+  .chat-input-row input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text1);
+    font-family: var(--sans);
+    font-size: 13px;
+    padding: 9px 12px;
+    border-radius: 6px;
+    outline: none;
+    transition: border .2s;
+  }
+  .chat-input-row input:focus { border-color: var(--accent); }
+  .chat-input-row input::placeholder { color: var(--text3); }
+  .chat-input-row input:disabled { opacity: .5; }
+
+  .send-btn {
+    background: var(--accent);
+    border: none;
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 9px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: opacity .2s;
+    white-space: nowrap;
+  }
+  .send-btn:hover { opacity: .85; }
+  .send-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .suggest-chips {
+    padding: 0 12px 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .chip {
+    font-size: 11px;
+    font-family: var(--mono);
+    padding: 4px 9px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    color: var(--text2);
+    cursor: pointer;
+    transition: all .15s;
+    background: var(--surface2);
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+
+  .hidden { display: none !important; }
+
+  /* scrollbars */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">LCS<span> / </span>Resolve<span> AI</span></div>
+  <div class="key-row">
+    <input type="password" id="apiKeyInput" placeholder="Paste your Anthropic API key (sk-ant-...)"/>
+    <div class="key-status" id="keyStatus">No key</div>
+  </div>
+</header>
+
+<!-- APP LAYOUT -->
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-header">Incoming Calls</div>
+    <div id="customerList"></div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main" id="mainPanel">
+    <div class="empty-state" id="emptyState">
+      <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+      </svg>
+      Select a customer to begin
+    </div>
+
+    <div id="aiCard" class="card hidden">
+      <div class="card-header">
+        <span>⚡ AI Call Briefing</span>
+        <span style="color:var(--text3);font-size:10px" id="aiModel">claude-sonnet</span>
+      </div>
+      <div class="card-body">
+        <div id="aiSummaryText" class="ai-summary"></div>
+      </div>
+    </div>
+
+    <div id="ticketsCard" class="card hidden">
+      <div class="card-header">Open Tickets</div>
+      <div class="card-body" id="ticketsList"></div>
+    </div>
+
+    <div id="hotfixesCard" class="card hidden">
+      <div class="card-header">Recent Hotfixes</div>
+      <div class="card-body" id="hotfixesList"></div>
+    </div>
+  </div>
+
+  <!-- CHAT PANEL -->
+  <div class="chat-panel">
+    <div class="chat-header">Ask about this customer</div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-empty" id="chatEmpty">
+        Select a customer, then ask anything about their account, tickets, or history.
+      </div>
+    </div>
+    <div class="suggest-chips" id="suggestChips" style="display:none">
+      <div class="chip" onclick="sendSuggestion(this)">Why might they be calling?</div>
+      <div class="chip" onclick="sendSuggestion(this)">Any recent hotfixes that affect them?</div>
+      <div class="chip" onclick="sendSuggestion(this)">Summarize their open tickets</div>
+      <div class="chip" onclick="sendSuggestion(this)">What modules do they use?</div>
+    </div>
+    <div class="chat-input-row">
+      <input type="text" id="chatInput" placeholder="Ask a question..." disabled/>
+      <button class="send-btn" id="sendBtn" onclick="sendChat()" disabled>Send</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const CUSTOMERS = {
+  acme: {
+    name: "Acme Realty Group",
+    units: "412 units",
+    since: "2019",
+    tags: ["billing","reports","portal"],
+    tickets: [
+      { id:"TKT-1042", date:"2026-04-10", desc:"Owner portal — statements not generating for units with pro-rated move-ins", status:"open" },
+      { id:"TKT-1038", date:"2026-03-28", desc:"Billing batch failing on last business day of month with timeout error", status:"open" },
+      { id:"TKT-1021", date:"2026-03-10", desc:"Report export to Excel missing column headers on filtered views", status:"closed" }
+    ]
+  },
+  meridian: {
+    name: "Meridian Property Mgmt",
+    units: "870 units",
+    since: "2021",
+    tags: ["sync","accounting","mobile"],
+    tickets: [
+      { id:"TKT-2091", date:"2026-04-14", desc:"Bank sync duplicating transactions after Plaid re-auth — GL out of balance", status:"open" },
+      { id:"TKT-2088", date:"2026-04-08", desc:"Mobile app crashing on lease renewal workflow — iOS 17.4 only", status:"open" },
+      { id:"TKT-2075", date:"2026-03-20", desc:"Journal entries not posting to correct period when backdated", status:"closed" }
+    ]
+  },
+  highland: {
+    name: "Highland Communities LLC",
+    units: "215 units",
+    since: "2022",
+    tags: ["maintenance","portal","reports"],
+    tickets: [
+      { id:"TKT-3010", date:"2026-04-18", desc:"Work orders not auto-assigning to vendor when priority set to Emergency", status:"open" },
+      { id:"TKT-3007", date:"2026-04-05", desc:"Resident portal showing incorrect balance — credit not reflecting same day", status:"open" }
+    ]
+  },
+  bluestone: {
+    name: "Bluestone Residential",
+    units: "1,200 units",
+    since: "2018",
+    tags: ["billing","accounting","sync","reports"],
+    tickets: [
+      { id:"TKT-4055", date:"2026-04-20", desc:"NSF fee not applying automatically when ACH returns — manual workaround needed", status:"open" },
+      { id:"TKT-4052", date:"2026-04-12", desc:"Late fee calculation wrong for weekly-pay leases — rounding error in amount", status:"open" },
+      { id:"TKT-4041", date:"2026-03-30", desc:"Custom report builder crashing when date range exceeds 18 months", status:"closed" },
+      { id:"TKT-4038", date:"2026-03-15", desc:"QuickBooks sync dropping utility charge line items on export", status:"closed" }
+    ]
+  }
+};
+
+const HOTFIXES = [
+  { version:"v5.8.3", date:"2026-04-22", module:"billing",     severity:"high",   desc:"Fixed billing batch timeout on month-end processing for portfolios over 200 units" },
+  { version:"v5.8.2", date:"2026-04-17", module:"sync",        severity:"high",   desc:"Resolved Plaid re-authentication triggering duplicate transaction entries in GL" },
+  { version:"v5.8.1", date:"2026-04-09", module:"mobile",      severity:"medium", desc:"iOS 17.4 crash fixed in lease renewal screen — navigation stack overflow" },
+  { version:"v5.7.9", date:"2026-03-28", module:"portal",      severity:"medium", desc:"Owner statement generation fix for pro-rated move-in calculations" },
+  { version:"v5.7.8", date:"2026-03-20", module:"maintenance", severity:"low",    desc:"Work order auto-assignment logic updated for Emergency priority routing" },
+  { version:"v5.7.7", date:"2026-03-14", module:"accounting",  severity:"medium", desc:"Backdated journal entry period fix — now respects fiscal period lock settings" },
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let activeCustomer = null;
+let chatHistory    = [];
+
+// ── KEY HANDLING ─────────────────────────────────────────────────────────────
+const keyInput  = document.getElementById('apiKeyInput');
+const keyStatus = document.getElementById('keyStatus');
+
+keyInput.addEventListener('input', () => {
+  const v = keyInput.value.trim();
+  if (v.startsWith('sk-ant-')) {
+    keyStatus.textContent = '✓ Key set';
+    keyStatus.className   = 'key-status ok';
+  } else if (v.length > 0) {
+    keyStatus.textContent = '✗ Invalid';
+    keyStatus.className   = 'key-status err';
+  } else {
+    keyStatus.textContent = 'No key';
+    keyStatus.className   = 'key-status';
+  }
+});
+
+function getKey() { return keyInput.value.trim(); }
+
+// ── RENDER CUSTOMERS ─────────────────────────────────────────────────────────
+function renderSidebar() {
+  const list = document.getElementById('customerList');
+  list.innerHTML = Object.entries(CUSTOMERS).map(([id, c]) => {
+    const open = c.tickets.filter(t => t.status === 'open').length;
+    return `
+      <div class="customer-card" id="card-${id}" onclick="selectCustomer('${id}')">
+        <div class="c-name">${c.name}${open ? `<span class="open-badge">${open} open</span>` : ''}</div>
+        <div class="c-meta">${c.units} · since ${c.since}</div>
+        <div class="c-tags">${c.tags.map(t => `<span class="tag tag-${t}">${t}</span>`).join('')}</div>
+      </div>`;
+  }).join('');
+}
+
+// ── SELECT CUSTOMER ───────────────────────────────────────────────────────────
+function selectCustomer(id) {
+  activeCustomer = id;
+  chatHistory    = [];
+
+  document.querySelectorAll('.customer-card').forEach(el => el.classList.remove('active'));
+  document.getElementById('card-' + id).classList.add('active');
+
+  document.getElementById('emptyState').classList.add('hidden');
+  document.getElementById('aiCard').classList.remove('hidden');
+  document.getElementById('ticketsCard').classList.remove('hidden');
+  document.getElementById('hotfixesCard').classList.remove('hidden');
+
+  // tickets
+  const c = CUSTOMERS[id];
+  document.getElementById('ticketsList').innerHTML = c.tickets.map(t => {
+    const related = HOTFIXES.find(h => h.module === t.tags?.[0]);
+    return `
+      <div class="item-row">
+        <div class="item-id">${t.id} · ${t.date}</div>
+        <div class="item-desc">${t.desc}</div>
+        <div class="item-meta">
+          <span class="status-${t.status}">${t.status}</span>
+          ${c.tags.map(tg => `<span class="tag tag-${tg}">${tg}</span>`).join('')}
+        </div>
+      </div>`;
+  }).join('');
+
+  // hotfixes
+  document.getElementById('hotfixesList').innerHTML = HOTFIXES.map(h => {
+    const relevant = c.tags.includes(h.module);
+    return `
+      <div class="item-row" style="${!relevant ? 'opacity:.4' : ''}">
+        <div class="item-id">${h.version} · ${h.date}</div>
+        <div class="item-desc">${h.desc}</div>
+        <div class="item-meta">
+          <span class="tag tag-${h.module}">${h.module}</span>
+          <span class="sev-${h.severity}">${h.severity}</span>
+          ${relevant ? '<span class="relevant-badge">Affects this customer</span>' : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  // reset chat
+  document.getElementById('chatMessages').innerHTML = '';
+  document.getElementById('chatEmpty').style.display = 'none';
+  document.getElementById('chatInput').disabled  = false;
+  document.getElementById('sendBtn').disabled    = false;
+  document.getElementById('suggestChips').style.display = 'flex';
+
+  generateSummary(id);
+}
+
+// ── BUILD CONTEXT ─────────────────────────────────────────────────────────────
+function buildContext(id) {
+  const c = CUSTOMERS[id];
+  const relevant = HOTFIXES.filter(h => c.tags.includes(h.module));
+  const open = c.tickets.filter(t => t.status === 'open');
+  return `
+CUSTOMER: ${c.name}
+Portfolio: ${c.units}, customer since ${c.since}
+Active Modules: ${c.tags.join(', ')}
+
+OPEN TICKETS (${open.length}):
+${open.map(t => `- [${t.id}] ${t.date}: ${t.desc}`).join('\n')}
+
+ALL TICKETS:
+${c.tickets.map(t => `- [${t.id}] ${t.date} (${t.status}): ${t.desc}`).join('\n')}
+
+RELEVANT HOTFIXES (${relevant.length} matching their modules):
+${relevant.map(h => `- ${h.version} (${h.date}) [${h.module}] ${h.severity.toUpperCase()}: ${h.desc}`).join('\n')}
+
+ALL RECENT HOTFIXES:
+${HOTFIXES.map(h => `- ${h.version} (${h.date}) [${h.module}]: ${h.desc}`).join('\n')}
+`.trim();
+}
+
+// ── AI CALL ───────────────────────────────────────────────────────────────────
+async function callClaude(systemPrompt, userMessage, history = []) {
+  const key = getKey();
+  const messages = [...history, { role: 'user', content: userMessage }];
+
+  // Try proxy first (for Netlify deployment), fall back to direct with CORS note
+  const endpoint = '/api/claude';
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 600,
+      system: systemPrompt,
+      messages,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.content?.[0]?.text || '(no response)';
+}
+
+// ── GENERATE SUMMARY ──────────────────────────────────────────────────────────
+async function generateSummary(id) {
+  const el = document.getElementById('aiSummaryText');
+  const key = getKey();
+
+  if (!key || !key.startsWith('sk-ant-')) {
+    const c = CUSTOMERS[id];
+    const relevant = HOTFIXES.filter(h => c.tags.includes(h.module));
+    const open = c.tickets.filter(t => t.status === 'open');
+    el.innerHTML = `<strong>${c.name}</strong> has <strong style="color:var(--red)">${open.length} open ticket(s)</strong> and <strong style="color:var(--amber)">${relevant.length} relevant hotfix(es)</strong> matching their modules. Most likely calling about: <em>${open[0]?.desc?.split('—')[0] || 'a support issue'}</em>.<br><br><span style="color:var(--text3);font-size:12px">→ Paste an Anthropic API key above for a live AI-generated briefing.</span>`;
+    return;
+  }
+
+  el.innerHTML = `<div class="ai-generating">Generating briefing <div class="dot-wave"><span></span><span></span><span></span></div></div>`;
+
+  try {
+    const ctx = buildContext(id);
+    const text = await callClaude(
+      `You are an AI assistant for LCS, a Rent Manager support team. Given a customer's support data, write a sharp 2-3 sentence briefing for the support agent answering this call. Predict why they're calling, flag the most urgent issue, and note any relevant recent hotfix. Be direct and specific — no fluff.`,
+      `Customer data:\n${ctx}\n\nWrite the call briefing.`
+    );
+    el.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  } catch (e) {
+    el.innerHTML = `<span style="color:var(--red)">API error: ${e.message}</span>`;
+  }
+}
+
+// ── CHAT ──────────────────────────────────────────────────────────────────────
+function appendMsg(role, text) {
+  const wrap = document.getElementById('chatMessages');
+  const div  = document.createElement('div');
+  div.className = role === 'user' ? 'msg msg-user' : 'msg msg-ai';
+  div.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+  return div;
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const btn   = document.getElementById('sendBtn');
+  const q     = input.value.trim();
+  if (!q || !activeCustomer) return;
+
+  const key = getKey();
+  if (!key || !key.startsWith('sk-ant-')) {
+    appendMsg('ai', '⚠ Please paste a valid Anthropic API key in the top bar first.');
+    return;
+  }
+
+  input.value    = '';
+  input.disabled = true;
+  btn.disabled   = true;
+  document.getElementById('suggestChips').style.display = 'none';
+
+  appendMsg('user', q);
+  const thinkingEl = appendMsg('ai', '<div class="ai-generating">Thinking <div class="dot-wave"><span></span><span></span><span></span></div></div>');
+
+  try {
+    const ctx   = buildContext(activeCustomer);
+    const reply = await callClaude(
+      `You are an AI assistant for LCS, a Rent Manager software support team. You help support agents answer questions about specific customers before and during calls. Use only the provided customer data to answer questions. Be concise and specific.\n\nCustomer data:\n${ctx}`,
+      q,
+      chatHistory
+    );
+    chatHistory.push({ role: 'user', content: q });
+    chatHistory.push({ role: 'assistant', content: reply });
+    thinkingEl.innerHTML = reply.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  } catch (e) {
+    thinkingEl.innerHTML = `<span style="color:var(--red)">Error: ${e.message}</span>`;
+  }
+
+  input.disabled = false;
+  btn.disabled   = false;
+  input.focus();
+}
+
+function sendSuggestion(chip) {
+  document.getElementById('chatInput').value = chip.textContent;
+  sendChat();
+}
+
+document.getElementById('chatInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendChat();
+});
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+renderSidebar();
+</script>
+</body>
+</html>
